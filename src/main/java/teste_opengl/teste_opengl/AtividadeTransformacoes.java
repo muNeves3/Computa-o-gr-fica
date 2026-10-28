@@ -1,6 +1,7 @@
 package teste_opengl.teste_opengl;
 
 import java.util.ArrayList;
+import java.util.DoubleSummaryStatistics;
 import java.util.List;
 
 import org.lwjgl.glfw.GLFW;
@@ -147,14 +148,21 @@ public class AtividadeTransformacoes {
             return;
         }
 
-        float somaX = 0;
-        float somaY = 0;
-        for (Point p : pontosCurva) {
-            somaX += p.x();
-            somaY += p.y();
-        }
-        float cmx = somaX / pontosCurva.size();
-        float cmy = somaY / pontosCurva.size();
+        DoubleSummaryStatistics statsX = pontosCurva.stream()
+                .mapToDouble(Point::x)
+                .summaryStatistics();
+
+        DoubleSummaryStatistics statsY = pontosCurva.stream()
+                .mapToDouble(Point::y)
+                .summaryStatistics();
+
+        float minX = (float) statsX.getMin();
+        float maxX = (float) statsX.getMax();
+        float minY = (float) statsY.getMin();
+        float maxY = (float) statsY.getMax();
+
+        float cmx = (maxX + minX) / 2;
+        float cmy = (maxY + minY) / 2;
 
         float fatorEscala = 1.0f;
         switch (operacao) {
@@ -195,13 +203,21 @@ public class AtividadeTransformacoes {
         if (sentido == 84)
             theta = -theta;
 
-        float somaX = 0, somaY = 0;
-        for (Point p : pontosCurva) {
-            somaX += p.x();
-            somaY += p.y();
-        }
-        float cmx = somaX / pontosCurva.size();
-        float cmy = somaY / pontosCurva.size();
+        DoubleSummaryStatistics statsX = pontosCurva.stream()
+                .mapToDouble(Point::x)
+                .summaryStatistics();
+
+        DoubleSummaryStatistics statsY = pontosCurva.stream()
+                .mapToDouble(Point::y)
+                .summaryStatistics();
+
+        float minX = (float) statsX.getMin();
+        float maxX = (float) statsX.getMax();
+        float minY = (float) statsY.getMin();
+        float maxY = (float) statsY.getMax();
+
+        float cmx = (maxX + minX) / 2;
+        float cmy = (maxY + minY) / 2;
 
         float cosTheta = (float) Math.cos(theta);
         float sinTheta = (float) Math.sin(theta);
