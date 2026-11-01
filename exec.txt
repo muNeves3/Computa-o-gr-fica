@@ -1,0 +1,3 @@
+mvn compile exec:java -Dexec.mainClass="teste_opengl.teste_opengl.LeituraObj" -Dexec.args="src/main/resources/Cat.obj"
+
+mvn compile exec:java -Dexec.mainClass="teste_opengl.teste_opengl.LeituraObj" 
