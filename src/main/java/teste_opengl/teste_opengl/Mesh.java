@@ -4,9 +4,12 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import static org.lwjgl.opengl.GL11.*; // Caso desenhe direto via LWJGL/OpenGL
+ 
+import static org.lwjgl.opengl.GL11.GL_LINE_LOOP;
+import static org.lwjgl.opengl.GL11.glBegin;
+import static org.lwjgl.opengl.GL11.glEnd;
+import static org.lwjgl.opengl.GL11.glVertex2d;
 
 class Vertice {
     double x, y, z;
@@ -77,7 +80,7 @@ public class Mesh {
             String linha;
             while ((linha = br.readLine()) != null) {
                 linha = linha.trim();
-                if (linha.isEmpty() || linha.startsWith("#"))
+                if (linha.isEmpty())
                     continue;
 
                 String[] linhaSplit = linha.split("\\s+");
@@ -118,87 +121,107 @@ public class Mesh {
         }
     }
 
-    public void translacao(double dx, double dy, double dz) {
+    private double[][] multiplicarMatrizes(double[][] A, double[][] B) {
+        double[][] C = new double[4][4];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                for (int k = 0; k < 4; k++) {
+                    C[i][j] += A[i][k] * B[k][j];
+                }
+            }
+        }
+        return C;
+
+        // GL11.glMultMatrix(Rx);
+        // GL11.glMultMatrix(Ry);
+        // GL11.glMultMatrix(Rz);
+    }
+
+    private double[][] matrizTranslacao(double dx, double dy, double dz) {
+        return new double[][] {
+            {1, 0, 0, dx},
+            {0, 1, 0, dy},
+            {0, 0, 1, dz},
+            {0, 0, 0, 1}
+        };
+    }
+
+    private double[][] matrizEscala(double ex, double ey, double ez) {
+        return new double[][] {
+            {ex, 0,  0,  0},
+            {0,  ey, 0,  0},
+            {0,  0,  ez, 0},
+            {0,  0,  0,  1}
+        };
+    }
+
+    private double[][] matrizRotacaoX(double anguloGraus) {
+        double rad = Math.toRadians(anguloGraus);
+        double c = Math.cos(rad), s = Math.sin(rad);
+        return new double[][] {
+            {1, 0,  0, 0},
+            {0, c, -s, 0},
+            {0, s,  c, 0},
+            {0, 0,  0, 1}
+        };
+    }
+
+    private double[][] matrizRotacaoY(double anguloGraus) {
+        double rad = Math.toRadians(anguloGraus);
+        double c = Math.cos(rad), s = Math.sin(rad);
+        return new double[][] {
+            { c, 0, s, 0},
+            { 0, 1, 0, 0},
+            {-s, 0, c, 0},
+            { 0, 0, 0, 1}
+        };
+    }
+
+    private double[][] matrizRotacaoZ(double anguloGraus) {
+        double rad = Math.toRadians(anguloGraus);
+        double c = Math.cos(rad), s = Math.sin(rad);
+        return new double[][] {
+            {c, -s, 0, 0},
+            {s,  c, 0, 0},
+            {0,  0, 1, 0},
+            {0,  0, 0, 1}
+        };
+    }
+
+    public void aplicarTransformacaoComposta(
+        double dx, double dy, double dz,
+        double angX, double angY, double angZ,
+        double ex, double ey, double ez) {
+
+        double[][] pivo_origem = matrizTranslacao(-pivo.x, -pivo.y, -pivo.z);
+
+        double[][] escala = matrizEscala(ex, ey, ez);
+
+        double[][] rotacao = multiplicarMatrizes(matrizRotacaoZ(angZ),
+                        multiplicarMatrizes(matrizRotacaoY(angY), matrizRotacaoX(angX)));
+
+        double[][] volta_pivo = matrizTranslacao(pivo.x + dx, pivo.y + dy, pivo.z + dz);
+
+        double[][] G = multiplicarMatrizes(rotacao, escala);
+        double[][] M = multiplicarMatrizes(volta_pivo, multiplicarMatrizes(G, pivo_origem));    
+
         for (Vertice v : vertices) {
-            v.x += dx;
-            v.y += dy;
-            v.z += dz;
+            double x = v.x, y = v.y, z = v.z;
+            v.x = M[0][0] * x + M[0][1] * y + M[0][2] * z + M[0][3];
+            v.y = M[1][0] * x + M[1][1] * y + M[1][2] * z + M[1][3];
+            v.z = M[2][0] * x + M[2][1] * y + M[2][2] * z + M[2][3];
+        }
+
+        for (Vertice n : normais) {
+            double nx = n.x, ny = n.y, nz = n.z;
+            n.x = rotacao[0][0] * nx + rotacao[0][1] * ny + rotacao[0][2] * nz;
+            n.y = rotacao[1][0] * nx + rotacao[1][1] * ny + rotacao[1][2] * nz;
+            n.z = rotacao[2][0] * nx + rotacao[2][1] * ny + rotacao[2][2] * nz;
         }
 
         pivo.x += dx;
         pivo.y += dy;
         pivo.z += dz;
-    }
-
-    public void escala(double ex, double ey, double ez) {
-        for (Vertice v : vertices) {
-            v.x = (v.x - pivo.x) * ex + pivo.x;
-            v.y = (v.y - pivo.y) * ey + pivo.y;
-            v.z = (v.z - pivo.z) * ez + pivo.z;
-        }
-    }
-
-    public void rotacaoX(double angulo) {
-        double rad = Math.toRadians(angulo);
-        double cos = Math.cos(rad);
-        double sin = Math.sin(rad);
-
-        for (Vertice v : vertices) {
-            double y0 = v.y - pivo.y;
-            double z0 = v.z - pivo.z;
-
-            v.y = (y0 * cos - z0 * sin) + pivo.y;
-            v.z = (y0 * sin + z0 * cos) + pivo.z;
-        }
-
-        for (Vertice n : normais) {
-            double ny = n.y * cos - n.z * sin;
-            double nz = n.y * sin + n.z * cos;
-            n.y = ny;
-            n.z = nz;
-        }
-    }
-
-    public void rotateY(double angleDegrees) {
-        double rad = Math.toRadians(angleDegrees);
-        double cos = Math.cos(rad);
-        double sin = Math.sin(rad);
-
-        for (Vertice v : vertices) {
-            double x0 = v.x - pivo.x;
-            double z0 = v.z - pivo.z;
-
-            v.x = (z0 * sin + x0 * cos) + pivo.x;
-            v.z = (z0 * cos - x0 * sin) + pivo.z;
-        }
-
-        for (Vertice n : normais) {
-            double nx = n.z * sin + n.x * cos;
-            double nz = n.z * cos - n.x * sin;
-            n.x = nx;
-            n.z = nz;
-        }
-    }
-
-    public void rotateZ(double angleDegrees) {
-        double rad = Math.toRadians(angleDegrees);
-        double cos = Math.cos(rad);
-        double sin = Math.sin(rad);
-
-        for (Vertice v : vertices) {
-            double x0 = v.x - pivo.x;
-            double y0 = v.y - pivo.y;
-
-            v.x = (x0 * cos - y0 * sin) + pivo.x;
-            v.y = (x0 * sin + y0 * cos) + pivo.y;
-        }
-
-        for (Vertice n : normais) {
-            double nx = n.x * cos - n.y * sin;
-            double ny = n.x * sin + n.y * cos;
-            n.x = nx;
-            n.y = ny;
-        }
     }
 
     public void desenharWireframe() {
